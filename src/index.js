@@ -2,9 +2,12 @@ const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const Customer = require("./models/customers");
+const cors = require("cors");
 
 mongoose.set("strictQuery", false);
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -31,24 +34,83 @@ const customers = [
   },
 ];
 
+const customer = new Customer({
+  name: "Araoluwa",
+  industry: "Engineering",
+});
+
 app.get("/", (req, res) => {
-  res.send("Welcome Home");
+  res.send("Welcome");
 });
 
-app.get("/api/customers", (req, res) => {
-  res.send({ data: customers });
+//reading all customers
+app.get("/api/customers", async (req, res) => {
+  try {
+    const result = await Customer.find();
+    res.send({ data: result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-app.post("/api/customers", (req, res) => {
+//reading single customer
+app.get("/api/customers/:id", async (req, res) => {
+  console.log({ requestParams: req.params, requestQuery: req.query });
+  try {
+    const customerId = req.params.id;
+    console.log(customerId);
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      res.status(404).json({ error: "User not found" });
+    } else res.json({ customer });
+  } catch (e) {
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+app.post("/api/customers", async (req, res) => {
   console.log(req.body);
-  res.send(req.body);
+  const customer = new Customer(req.body);
+  try {
+    await customer.save();
+    res.status(201).json({ customer });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 app.post("/", (req, res) => {
   res.send("<h1>This is a post</h1>");
 });
 
-//connection string:  "mongodb+srv://piemicah:goodpie222@customer.r7qodgh.mongodb.net/?retryWrites=true&w=majority"
+//updating single customer
+app.put("/api/customers/:id", async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const result = await Customer.replaceOne({ _id: customerId }, req.body);
+    const customer = await Customer.findById(customerId);
+    console.log(result);
+    res.json({
+      updatedCount: result.modifiedCount,
+      updatedCustomer: customer,
+    });
+  } catch {
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+//deleting
+app.delete("/api/customers/:id", async (req, res) => {
+  try {
+    const customerId = req.params.id;
+    const result = await Customer.deleteOne({ _id: customerId });
+    console.log(result);
+    res.json({ deletedCount: result.deletedCount });
+  } catch {
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
 
 const start = async () => {
   try {
